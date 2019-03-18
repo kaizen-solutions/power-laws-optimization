@@ -1,0 +1,72 @@
+#+SETUPFILE: /home/cayek/.src/org-html-themes/setup/theme-readtheorg.setup
+
+#+TITLE: Schotastic Programming
+#+AUTHOR: Kevin Caye
+
+#+PROPERTY: header-args :eval no-export :results output :exports results :session *R-coldstart-bench*
+
+#+NAME: code_R_init
+#+BEGIN_SRC R :results none :exports none 
+library(tidyverse)
+library(lubridate)
+library(glue)
+library(plotly)
+library(here)
+
+project_dir <- here()
+data_dir <- here("data")
+#+END_SRC
+* Data
+#+CAPTION: This code chunk depends on [[R_init]]
+#+NAME: R_load_data
+#+BEGIN_SRC R
+train_df <- read_csv("")
+#+END_SRC
+* Kaizen Tech week 
+** Consumption plot
+* Explanation of our method
+** Problem modeling: linear programming
+
+\begin{equation*}
+\begin{aligned}
+& \underset{[\text{grid}_t]_{t \in [0, 24h]}}{\text{minimize}} & & \sum_{t=0}^{24h} \text{grid}_t \times \text{price}_t \\
+& \text{subject to} &  & \text{grid}_t = \text{conso}_t - \text{pv}_t - \text{battery}_t \\
+& t \in [0, 24h] & & \text{battery}_t \times \rho < \text{max_power_battery} \\
+& & & 0 < \text{total_battery}_t + \text{battery}_t < \text{max_capacity_battery}.
+\end{aligned}
+\end{equation*}
+
+Where 
+
+$$
+error = \text{real consumption} - \text{predicted consumption}
+$$
+
+$$
+z\text{-score}= \frac{error - \mu_{error} }{\sigma_{error}}
+$$
+
+
+
+** Problem modeling: Scenario based stochastic programming
+
+\begin{equation*}
+\begin{aligned}
+& \underset{[\text{grid}_t]_{t \in [0, 24h]}}{\text{minimize}} & & \sum_{t=0}^{24h} \text{grid}_t \times \text{price}_t \\
+& \text{subject to} &  & \text{grid}_t = \text{conso}_t - \text{pv}_t - \text{battery}_t \\
+& t \in [0, 24h] & & \text{battery}_t \times \rho < \text{max_power_battery} \\
+& & & 0 < \text{total_battery}_t + \text{battery}_t < \text{max_capacity_battery}.
+\end{aligned}
+\end{equation*}
+
+Where 
+
+$$
+error = \text{real consumption} - \text{predicted consumption}
+$$
+
+$$
+z\text{-score}= \frac{error - \mu_{error} }{\sigma_{error}}
+$$
+
+
