@@ -15,15 +15,78 @@ library(here)
 
 project_dir <- here()
 data_dir <- here("data")
+res_dir <- here("all_results")
 #+END_SRC
 * Data
-#+CAPTION: This code chunk depends on [[R_init]]
-#+NAME: R_load_data
-#+BEGIN_SRC R
-train_df <- read_csv("")
-#+END_SRC
 * Kaizen Tech week 
 ** Consumption plot
+#+CAPTION: This code chunk depends on [[R_init]]
+#+NAME: R_plot_conso
+#+BEGIN_SRC R
+submit_df <- read_csv(glue("{data_dir}/submit/1.csv")) %>%
+  arrange(timestamp)
+
+## chose data for plot
+t_0 <- submit_df$timestamp[1]
+t_1 <- submit_df$timestamp[96 * 2 + 1]
+df_ <- submit_df %>% filter(submit_df$timestamp == t_1)
+## get prediction
+pred_pv <- df_ %>%
+  select(starts_with("pv"), timestamp) %>%
+  gather(key = 'var', value = "value", -timestamp) %>%
+  arrange(var) %>%
+  mutate(timestamp = seq(timestamp[1], length.out = 96,  by = "15 mins")) %>%
+  mutate(ts = "Production")
+pred_load <- df_ %>%
+  select(starts_with("load"), timestamp) %>%
+  gather(key = 'var', value = "value", -timestamp) %>%
+  arrange(var) %>%
+  mutate(timestamp = seq(timestamp[1], length.out = 96,  by = "15 mins")) %>%
+  mutate(ts = "Consumption")
+pred_df <- bind_rows(pred_pv, pred_load)
+
+## plot
+pl_df <- submit_df %>%
+  filter(timestamp < t_1) %>%
+  rename(Consumption = actual_consumption,
+         Production = actual_pv) %>%
+  select(timestamp, Consumption, Production) %>%
+  gather(key = ts, value = "value", -timestamp)
+pl <- ggplot(pl_df, aes(x = timestamp, y = value, color = ts)) +
+  geom_line() +
+  geom_line(data = pred_df, linetype = "dashed") +
+  geom_vline(xintercept = t_1, color = "red", size = 2) +
+  xlab("Date Time") +
+  ylab("Energy (kWh)") +
+  guides(color = guide_legend(title = "Time Series")) +
+  theme_bw(15) +
+  theme(legend.position = "top")
+
+ggsave("./plots/presentation-competition.png", pl , units = "in", dpi = 300, width = 10, height = 6)
+#+END_SRC
+
+** Consumption plot with error
+#+CAPTION: This code chunk depends on [[R_plot_conso]]
+#+NAME: R_plot_error
+#+BEGIN_SRC R
+pl <- ggplot(pl_df, aes(x = timestamp, y = value, color = ts)) +
+  geom_line() +
+  geom_ribbon(data = pred_df,
+              aes(ymin = value - 5000,
+                  ymax = value + 5000) , fill = "grey70",
+              show.legend = FALSE) +
+  geom_line(data = pred_df, linetype = "dashed") +
+  geom_vline(xintercept = t_1, color = "red", size = 2) +
+  xlab("Date Time") +
+  ylab("Energy (kWh)") +
+  guides(color = guide_legend(title = "Time Series")) +
+  theme_bw(15) +
+  theme(legend.position = "top")
+
+ggsave("./plots/presentation-error.png", pl , units = "in", dpi = 300, width = 10, height = 6)
+#+END_SRC
+
+
 * Explanation of our method
 ** Problem modeling: linear programming
 
@@ -47,15 +110,14 @@ z\text{-score}= \frac{error - \mu_{error} }{\sigma_{error}}
 $$
 
 
-
 ** Problem modeling: Scenario based stochastic programming
 
 \begin{equation*}
 \begin{aligned}
-& \underset{[\text{grid}_t]_{t \in [0, 24h]}}{\text{minimize}} & & \sum_{t=0}^{24h} \text{grid}_t \times \text{price}_t \\
-& \text{subject to} &  & \text{grid}_t = \text{conso}_t - \text{pv}_t - \text{battery}_t \\
+& \underset{[\text{grid}_t^q]_{t \in [0, 24h], q \in [-2,2]}}{\text{minimize}} & & \sum_{t=0}^{24h} \sum_{q=-2}^{2} \text{grid}_t^q \times \text{price}_t \\
+& \text{subject to} & & \text{grid}_t^q = \text{conso}_t^q - \text{pv}_t^q - \text{battery}_t \\
 & t \in [0, 24h] & & \text{battery}_t \times \rho < \text{max_power_battery} \\
-& & & 0 < \text{total_battery}_t + \text{battery}_t < \text{max_capacity_battery}.
+& q \in [-2, 2] & & 0 < \text{total_battery}_t + \text{battery}_t < \text{max_capacity_battery}.
 \end{aligned}
 \end{equation*}
 
@@ -70,3 +132,35 @@ z\text{-score}= \frac{error - \mu_{error} }{\sigma_{error}}
 $$
 
 
+* Run all methods
+** Create the python env
+#+BEGIN_SRC shell
+mkvirtualenv -p  ~/.pyenv/versions/3.6.4/bin/python3.6 se3
+pip install numpy==1.14.0
+pip install -r requirements.txt
+#+END_SRC
+** Run all methods
+** Results
+#+CAPTION: This code chunk depends on [[R_init]]
+#+NAME: R_show_results
+#+BEGIN_SRC R :results value :colnames yes
+## get restuls
+res_df <- list.files(glue("{res_dir}/"), pattern = "*.csv", full.names = TRUE) %>%
+  map(~read_csv(.x) %>%
+        mutate(competitor = basename(.x) %>% str_replace("_results.csv",""))) %>%
+  bind_rows()
+
+res_df %>%
+  filter(competitor != "null") %>%
+  group_by(competitor) %>%
+  summarise(score = - mean(score)) %>%
+  arrange(-score)
+#+END_SRC
+
+#+RESULTS: R_show_results
+| competitor |             score |
+|------------+-------------------|
+|        our | 0.195746543825866 |
+|          1 | 0.194264788759281 |
+|          2 | 0.192222435952008 |
+|          3 |  0.19126490319826 |

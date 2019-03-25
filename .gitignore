@@ -7,3 +7,6 @@ all_results/*
 
 output/*
 !output/.gitkeep
+
+# python stuff
+__pycache__
